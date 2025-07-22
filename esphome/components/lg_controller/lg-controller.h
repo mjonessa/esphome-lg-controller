@@ -1116,9 +1116,6 @@ private:
             case 1: // 0xC9
                 process_capabilities_message(*sender, buffer);
                 break;
-            case 1: // 0xC9
-                process_capabilities_message(*sender, buffer);
-                break;
             case 2: // 0xCA/AA/2A
                 process_type_a_settings_message(*sender, buffer);
                 break;
