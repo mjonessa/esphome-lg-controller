@@ -220,8 +220,6 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
         MODE_FAN,
         MODE_AUTO,
         MODE_DEHUMIDIFY,
-        VERTICAL_SWING,
-        HORIZONTAL_SWING,
         HAS_ESP_VALUE_SETTING,
         OVERHEATING_SETTING,
         AUTO_DRY,
@@ -253,10 +251,6 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
                 return (nvs_storage_.capabilities_message[2] & 0x08) != 0;
             case LgCapability::MODE_DEHUMIDIFY:
                 return (nvs_storage_.capabilities_message[2] & 0x80) != 0;
-            case LgCapability::VERTICAL_SWING:
-                return (nvs_storage_.capabilities_message[1] & 0x80) != 0;
-            case LgCapability::HORIZONTAL_SWING:
-                return (nvs_storage_.capabilities_message[1] & 0x40) != 0;
             case LgCapability::HAS_ESP_VALUE_SETTING:
                 return (nvs_storage_.capabilities_message[4] & 0x02) != 0;
             case LgCapability::OVERHEATING_SETTING:
@@ -361,9 +355,6 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
         });
         supported_traits_.set_supported_swing_modes({
             climate::CLIMATE_SWING_OFF,
-            climate::CLIMATE_SWING_BOTH,
-            climate::CLIMATE_SWING_VERTICAL,
-            climate::CLIMATE_SWING_HORIZONTAL,
         });
         supported_traits_.set_supports_current_temperature(true);
         supported_traits_.set_supports_two_point_target_temperature(false);
@@ -401,16 +392,6 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
             if (parse_capability(LgCapability::FAN_HIGH))
                 fan_modes.insert(climate::CLIMATE_FAN_HIGH);
             supported_traits_.set_supported_fan_modes(fan_modes);
-
-            std::set<climate::ClimateSwingMode> swing_modes;
-            swing_modes.insert(climate::CLIMATE_SWING_OFF);
-            if (parse_capability(LgCapability::VERTICAL_SWING) && parse_capability(LgCapability::HORIZONTAL_SWING))
-                swing_modes.insert(climate::CLIMATE_SWING_BOTH);
-            if (parse_capability(LgCapability::VERTICAL_SWING))
-                swing_modes.insert(climate::CLIMATE_SWING_VERTICAL);
-            if (parse_capability(LgCapability::HORIZONTAL_SWING))
-                swing_modes.insert(climate::CLIMATE_SWING_HORIZONTAL);
-            supported_traits_.set_supported_swing_modes(swing_modes);
 
             // Disable unsupported entities
             fan_speed_slow_.set_internal(true);
@@ -585,9 +566,6 @@ public:
         if (call.get_fan_mode().has_value()) {
             this->fan_mode = *call.get_fan_mode();
         }
-        if (call.get_swing_mode().has_value()) {
-            set_swing_mode(*call.get_swing_mode());
-        }
         this->pending_status_change_ = true;
         this->publish_state();
     }
@@ -703,16 +681,6 @@ private:
         return (result & 0xff) ^ 0x55;
     }
 
-    void set_swing_mode(climate::ClimateSwingMode mode) {
-        if (this->swing_mode != mode) {
-            // If vertical swing is off, send a 0xAA message to restore the vane position.
-            if (mode == climate::CLIMATE_SWING_OFF || mode == climate::CLIMATE_SWING_HORIZONTAL) {
-                pending_type_a_settings_change_ = true;
-            }
-        }
-        this->swing_mode = mode;
-    }
-
     void send_status_message() {
         // Byte 0: message type.
         send_buf_[0] = slave_ ? 0x28 : 0xA8;
@@ -774,22 +742,6 @@ private:
         b = last_recv_status_[2] & ~(0x4|0x40|0x80);
         if (purifier_.state) {
             b |= 0x4;
-        }
-        switch (this->swing_mode) {
-            case climate::CLIMATE_SWING_OFF:
-                break;
-            case climate::CLIMATE_SWING_HORIZONTAL:
-                b |= 0x40;
-                break;
-            case climate::CLIMATE_SWING_VERTICAL:
-                b |= 0x80;
-                break;
-            case climate::CLIMATE_SWING_BOTH:
-                b |= 0x40 | 0x80;
-                break;
-            default:
-                ESP_LOGE(TAG, "unknown swing mode");
-                break;
         }
         send_buf_[2] = b;
 
@@ -1174,18 +1126,6 @@ private:
         }
 
         purifier_.publish_state(buffer[2] & 0x4);
-
-        bool horiz_swing = buffer[2] & 0x40;
-        bool vert_swing = buffer[2] & 0x80;
-        if (horiz_swing && vert_swing) {
-            set_swing_mode(climate::CLIMATE_SWING_BOTH);
-        } else if (horiz_swing) {
-            set_swing_mode(climate::CLIMATE_SWING_HORIZONTAL);
-        } else if (vert_swing) {
-            set_swing_mode(climate::CLIMATE_SWING_VERTICAL);
-        } else {
-            set_swing_mode(climate::CLIMATE_SWING_OFF);
-        }
 
         float target = float((buffer[6] & 0xf) + 15);
         if (buffer[5] & 0x1) {
