@@ -141,6 +141,7 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
     LgSelect& vane_select_3_;
     LgSelect& vane_select_4_;
     LgSelect& overheating_select_;
+    LgSelect& zone_select_;
 
     LgNumber& fan_speed_slow_;
     LgNumber& fan_speed_low_;
@@ -192,6 +193,7 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
     uint8_t vane_position_[4] = {0,0,0,0};
     uint8_t fan_speed_[4] = {0,0,0,0};
     uint8_t overheating_ = 0;
+    uint8_t zone_ = 0;
 
     optional<uint32_t> sleep_timer_target_millis_{};
     bool active_reservation_ = false;
@@ -412,6 +414,7 @@ public:
                  LgSelect* vane_select_3,
                  LgSelect* vane_select_4,
                  LgSelect* overheating_select,
+                 LgSelect* zone_select,
                  LgNumber* fan_speed_slow,
                  LgNumber* fan_speed_low,
                  LgNumber* fan_speed_medium,
@@ -436,6 +439,7 @@ public:
         vane_select_3_(*vane_select_3),
         vane_select_4_(*vane_select_4),
         overheating_select_(*overheating_select),
+        zone_select_(*zone_select),
         fan_speed_slow_(*fan_speed_slow),
         fan_speed_low_(*fan_speed_low),
         fan_speed_medium_(*fan_speed_medium),
@@ -469,6 +473,9 @@ public:
         });
         overheating_select_.add_on_state_callback([this](std::string v, size_t index) {
             set_overheating(index);
+        });
+        zone_select_.add_on_state_callback([this](std::string v, size_t index) {
+            set_zone(index);
         });
 
         fan_speed_slow_.add_on_state_callback([this](float v) {
@@ -577,6 +584,21 @@ private:
         vane_position_[index-1] = position;
         if (!is_initializing_) {
             pending_type_a_settings_change_ = true;
+        }
+    }
+
+    void set_zone(int zone) {
+        if (zone < 0 || zone > 15) {
+            ESP_LOGE(TAG, "Unexpected zone: %d", zone);
+            return;
+        }
+        if (zone_ == zone) {
+            return;
+        }
+        ESP_LOGD(TAG, "Setting zone: %d", zone);
+        zone_ = zone;
+        if (!is_initializing_) {
+            pending_type_b_settings_change_ = true;
         }
     }
 
@@ -935,6 +957,9 @@ private:
 
         // Byte 2 stores installer setting 15.
         send_buf_[2] = (send_buf_[2] & 0xC7) | (overheating_ << 3);
+
+        // Byte 6 stores the zone
+        send_buf_[6] = (send_buf_[6] & 0xF0) | (zone_ & 0x0F);
 
         send_buf_[12] = calc_checksum(send_buf_);
 
@@ -1301,6 +1326,14 @@ private:
             overheating_select_.publish_state(*overheating_select_.at(overheating));
         } else {
             ESP_LOGE(TAG, "Unexpected overheating value: %u", overheating);
+        }
+
+        uint8_t zone = buffer[6] & 0x0F;
+        if (zone <= 15) {
+            zone_ = zone;
+            zone_select_.publish_state(*zone_select_.at(zone));
+        } else {
+            ESP_LOGE(TAG, "Unexpected zone value: %u", zone);
         }
 
         // Table mapping a byte value to degrees Celsius based on values displayed by PREMTB100.

@@ -77,6 +77,10 @@ climate:
       name: Over Heating
       id: overheating
       icon: mdi:heating-coil
+    zone:
+      name: Zone
+      id: zone
+      icon: mdi:map-marker
     fan_speed_slow:
       name: Fan Speed Slow
       id: fan_speed_slow
