@@ -164,6 +164,11 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
     LgSwitch& internal_thermistor_;
     LgSwitch& auto_dry_;
 
+    LgSwitch& zone1_;
+    LgSwitch& zone2_;
+    LgSwitch& zone3_;
+    LgSwitch& zone4_;
+
     uint8_t recv_buf_[MsgLen] = {};
     uint32_t recv_buf_len_ = 0;
     uint32_t last_recv_millis_ = 0;
@@ -431,6 +436,10 @@ public:
                  LgSwitch* purifier,
                  LgSwitch* internal_thermistor,
                  LgSwitch* auto_dry,
+                 LgSwitch* zone1,
+                 LgSwitch* zone2,
+                 LgSwitch* zone3,
+                 LgSwitch* zone4,
                  bool fahrenheit, bool is_slave_controller)
       : rx_pin_(*rx_pin),
         temperature_sensor_(temperature_sensor),
@@ -456,6 +465,10 @@ public:
         purifier_(*purifier),
         internal_thermistor_(*internal_thermistor),
         auto_dry_(*auto_dry),
+        zone1_(*zone1),
+        zone2_(*zone2),
+        zone3_(*zone3),
+        zone4_(*zone4),
         fahrenheit_(fahrenheit),
         slave_(is_slave_controller)
     {
@@ -502,6 +515,18 @@ public:
         });
         auto_dry_.add_on_state_callback([this](bool) {
             pending_type_a_settings_change_ = true;
+        });
+        zone1_.add_on_state_callback([this](bool) {
+            pending_status_change_ = true;
+        });
+        zone2_.add_on_state_callback([this](bool) {
+            pending_status_change_ = true;
+        });
+        zone3_.add_on_state_callback([this](bool) {
+            pending_status_change_ = true;
+        });
+        zone4_.add_on_state_callback([this](bool) {
+            pending_status_change_ = true;
         });
     }
 
@@ -809,6 +834,22 @@ private:
         // Byte 4.
         send_buf_[4] = last_recv_status_[4];
 
+        // Byte 5: zones 1-4
+        uint8_t b5 = last_recv_status_[5] & ~0b01111000;
+        if (zone1_.state) {
+            b5 |= 0b01000000;
+        }
+        if (zone2_.state) {
+            b5 |= 0b00100000;
+        }
+        if (zone3_.state) {
+            b5 |= 0b00010000;
+        }
+        if (zone4_.state) {
+            b5 |= 0b00001000;
+        }
+        send_buf_[5] = b5;
+
         float target = this->target_temperature;
         if (fahrenheit_) {
             target = TempConversion::celsius_to_lgcelsius(target);
@@ -1114,6 +1155,11 @@ private:
         if (sender != MessageSender::Slave) {
             memcpy(last_recv_status_, buffer, MsgLen);
         }
+
+        zone1_.publish_state(buffer[5] & 0b01000000);
+        zone2_.publish_state(buffer[5] & 0b00100000);
+        zone3_.publish_state(buffer[5] & 0b00010000);
+        zone4_.publish_state(buffer[5] & 0b00001000);
 
         uint8_t b = buffer[1];
         if ((b & 0x2) == 0) {

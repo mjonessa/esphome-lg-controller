@@ -77,10 +77,6 @@ climate:
       name: Over Heating
       id: overheating
       icon: mdi:heating-coil
-    zone:
-      name: Zone
-      id: zone
-      icon: mdi:map-marker
     fan_speed_slow:
       name: Fan Speed Slow
       id: fan_speed_slow
@@ -153,3 +149,19 @@ climate:
       name: Auto Dry
       id: auto_dry
       icon: mdi:fan-clock
+    zone1:
+      name: "Zone 1"
+      id: zone1
+      icon: mdi:numeric-1-box-outline
+    zone2:
+      name: "Zone 2"
+      id: zone2
+      icon: mdi:numeric-2-box-outline
+    zone3:
+      name: "Zone 3"
+      id: zone3
+      icon: mdi:numeric-3-box-outline
+    zone4:
+      name: "Zone 4"
+      id: zone4
+      icon: mdi:numeric-4-box-outline

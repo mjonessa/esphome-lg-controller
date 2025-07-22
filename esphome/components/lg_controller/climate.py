@@ -26,7 +26,11 @@ CONF_VANE2 = "vane2"
 CONF_VANE3 = "vane3"
 CONF_VANE4 = "vane4"
 CONF_OVERHEATING = "overheating"
-CONF_ZONE = "zone"
+
+CONF_ZONE1 = "zone1"
+CONF_ZONE2 = "zone2"
+CONF_ZONE3 = "zone3"
+CONF_ZONE4 = "zone4"
 
 CONF_FAN_SPEED_SLOW = "fan_speed_slow"
 CONF_FAN_SPEED_LOW = "fan_speed_low"
@@ -50,7 +54,6 @@ CONF_AUTO_DRY = "auto_dry"
 
 VANE_OPTIONS = ["0 (Default)", "1 (Up)", "2", "3", "4", "5", "6 (Down)"]
 OVERHEATING_OPTIONS = ["0 (Default)", "1 (+4C/+6C)", "2 (+2C/+4C)", "3 (-1C/+1C)", "4 (-0.5C/+0.5C)"]
-ZONE_OPTIONS = ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"]
 
 CONFIG_SCHEMA = climate.climate_schema(LgController).extend(
     {
@@ -66,7 +69,6 @@ CONFIG_SCHEMA = climate.climate_schema(LgController).extend(
         cv.Required(CONF_VANE3): select.select_schema(LgSelect),
         cv.Required(CONF_VANE4): select.select_schema(LgSelect),
         cv.Required(CONF_OVERHEATING): select.select_schema(LgSelect),
-        cv.Required(CONF_ZONE): select.select_schema(LgSelect),
 
         cv.Required(CONF_FAN_SPEED_SLOW): number.number_schema(LgNumber),
         cv.Required(CONF_FAN_SPEED_LOW): number.number_schema(LgNumber),
@@ -87,6 +89,10 @@ CONFIG_SCHEMA = climate.climate_schema(LgController).extend(
         cv.Required(CONF_PURIFIER): switch.switch_schema(LgSwitch),
         cv.Required(CONF_INTERNAL_THERMISTOR): switch.switch_schema(LgSwitch),
         cv.Required(CONF_AUTO_DRY): switch.switch_schema(LgSwitch),
+        cv.Required(CONF_ZONE1): switch.switch_schema(LgSwitch),
+        cv.Required(CONF_ZONE2): switch.switch_schema(LgSwitch),
+        cv.Required(CONF_ZONE3): switch.switch_schema(LgSwitch),
+        cv.Required(CONF_ZONE4): switch.switch_schema(LgSwitch),
     }
 ).extend(cv.COMPONENT_SCHEMA).extend(uart.UART_DEVICE_SCHEMA)
 
@@ -103,7 +109,6 @@ async def to_code(config):
     vane3 = await select.new_select(config[CONF_VANE3], options=VANE_OPTIONS)
     vane4 = await select.new_select(config[CONF_VANE4], options=VANE_OPTIONS)
     overheating = await select.new_select(config[CONF_OVERHEATING], options=OVERHEATING_OPTIONS)
-    zone = await select.new_select(config[CONF_ZONE], options=ZONE_OPTIONS)
 
     fan_speed_slow = await number.new_number(config[CONF_FAN_SPEED_SLOW], min_value=0, max_value=255, step=1)
     fan_speed_low = await number.new_number(config[CONF_FAN_SPEED_LOW], min_value=0, max_value=255, step=1)
@@ -124,14 +129,18 @@ async def to_code(config):
     purifier = await switch.new_switch(config[CONF_PURIFIER])
     internal_thermistor = await switch.new_switch(config[CONF_INTERNAL_THERMISTOR])
     auto_dry = await switch.new_switch(config[CONF_AUTO_DRY])
+    zone1 = await switch.new_switch(config[CONF_ZONE1])
+    zone2 = await switch.new_switch(config[CONF_ZONE2])
+    zone3 = await switch.new_switch(config[CONF_ZONE3])
+    zone4 = await switch.new_switch(config[CONF_ZONE4])
 
     var = cg.new_Pvariable(config[CONF_ID], rx_pin, temperature_sensor,
-                           vane1, vane2, vane3, vane4, overheating, zone,
+                           vane1, vane2, vane3, vane4, overheating,
                            fan_speed_slow, fan_speed_low, fan_speed_medium, fan_speed_high,
                            sleep_timer,
                            error_code, pipe_temp_in, pipe_temp_mid, pipe_temp_out,
                            defrost, preheat, outdoor, auto_dry_active,
-                           purifier, internal_thermistor, auto_dry,
+                           purifier, internal_thermistor, auto_dry, zone1, zone2, zone3, zone4,
                            config[CONF_FAHRENHEIT], config[CONF_IS_SLAVE_CONTROLLER])
     await climate.register_climate(var, config)
     await cg.register_component(var, config)
