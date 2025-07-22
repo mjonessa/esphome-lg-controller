@@ -1116,6 +1116,9 @@ private:
             case 1: // 0xC9
                 process_capabilities_message(*sender, buffer);
                 break;
+            case 1: // 0xC9
+                process_capabilities_message(*sender, buffer);
+                break;
             case 2: // 0xCA/AA/2A
                 process_type_a_settings_message(*sender, buffer);
                 break;
@@ -1310,11 +1313,11 @@ private:
             return;
         }
 
-        decode_capabilities(buffer);
-
         // Check if we need to update the capabilities message.
         if (nvs_storage_.capabilities_message[0] == 0 ||
             std::memcmp(nvs_storage_.capabilities_message, buffer, MsgLen - 1) != 0) {
+            decode_capabilities(buffer);
+            configure_capabilities();
 
             bool needsRestart = (nvs_storage_.capabilities_message[0] == 0);
 

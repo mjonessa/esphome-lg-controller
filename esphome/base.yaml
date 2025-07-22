@@ -2,6 +2,9 @@ esphome:
   name: ${deviceid}
   friendly_name: ${devicename}
 
+logger:
+  level: DEBUG
+
 esp32:
   board: esp32dev
   # For the FeatherS3, uncomment the next two lines and remove the line above.
