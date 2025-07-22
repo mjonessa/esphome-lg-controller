@@ -136,10 +136,6 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
     InternalGPIOPin& rx_pin_;
     esphome::sensor::Sensor* temperature_sensor_;
 
-    LgSelect& vane_select_1_;
-    LgSelect& vane_select_2_;
-    LgSelect& vane_select_3_;
-    LgSelect& vane_select_4_;
     LgSelect& overheating_select_;
 
     LgNumber& fan_speed_slow_;
@@ -150,9 +146,6 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
     LgNumber& sleep_timer_;
 
     esphome::sensor::Sensor& error_code_;
-    esphome::sensor::Sensor& pipe_temp_in_;
-    esphome::sensor::Sensor& pipe_temp_mid_;
-    esphome::sensor::Sensor& pipe_temp_out_;
     esphome::binary_sensor::BinarySensor& defrost_;
     esphome::binary_sensor::BinarySensor& preheat_;
     esphome::binary_sensor::BinarySensor& outdoor_;
@@ -194,7 +187,6 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
 
     bool is_initializing_ = true;
 
-    uint8_t vane_position_[4] = {0,0,0,0};
     uint8_t fan_speed_[4] = {0,0,0,0};
     uint8_t overheating_ = 0;
 
@@ -228,9 +220,6 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
         MODE_FAN,
         MODE_AUTO,
         MODE_DEHUMIDIFY,
-        HAS_ONE_VANE,
-        HAS_TWO_VANES,
-        HAS_FOUR_VANES,
         VERTICAL_SWING,
         HORIZONTAL_SWING,
         HAS_ESP_VALUE_SETTING,
@@ -264,16 +253,6 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
                 return (nvs_storage_.capabilities_message[2] & 0x08) != 0;
             case LgCapability::MODE_DEHUMIDIFY:
                 return (nvs_storage_.capabilities_message[2] & 0x80) != 0;
-            case LgCapability::HAS_ONE_VANE:
-                return (nvs_storage_.capabilities_message[5] & 0x40) != 0;
-            case LgCapability::HAS_TWO_VANES:
-                return (nvs_storage_.capabilities_message[5] & 0x80) != 0;
-            case LgCapability::HAS_FOUR_VANES:
-                // Actual flag is unknown, assume 4 vanes if neither 1 nor 2 vanes are supported
-                // and the vane control bit is set.
-                return (nvs_storage_.capabilities_message[5] & 0x40) == 0 &&
-                       (nvs_storage_.capabilities_message[5] & 0x80) == 0 &&
-                       (nvs_storage_.capabilities_message[4] & 0x01) != 0;
             case LgCapability::VERTICAL_SWING:
                 return (nvs_storage_.capabilities_message[1] & 0x80) != 0;
             case LgCapability::HORIZONTAL_SWING:
@@ -434,23 +413,6 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
             supported_traits_.set_supported_swing_modes(swing_modes);
 
             // Disable unsupported entities
-            vane_select_1_.set_internal(true);
-            vane_select_2_.set_internal(true);
-            vane_select_3_.set_internal(true);
-            vane_select_4_.set_internal(true);
-
-            if (parse_capability(LgCapability::HAS_ONE_VANE)) {
-                vane_select_1_.set_internal(false);
-            } else if (parse_capability(LgCapability::HAS_TWO_VANES)) {
-                vane_select_1_.set_internal(false);
-                vane_select_2_.set_internal(false);
-            } else if (parse_capability(LgCapability::HAS_FOUR_VANES)) {
-                vane_select_1_.set_internal(false);
-                vane_select_2_.set_internal(false);
-                vane_select_3_.set_internal(false);
-                vane_select_4_.set_internal(false);
-            }
-
             fan_speed_slow_.set_internal(true);
             fan_speed_low_.set_internal(true);
             fan_speed_medium_.set_internal(true);
@@ -488,10 +450,6 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
 public:
     LgController(InternalGPIOPin* rx_pin,
                  sensor::Sensor* temperature_sensor,
-                 LgSelect* vane_select_1,
-                 LgSelect* vane_select_2,
-                 LgSelect* vane_select_3,
-                 LgSelect* vane_select_4,
                  LgSelect* overheating_select,
                  LgNumber* fan_speed_slow,
                  LgNumber* fan_speed_low,
@@ -499,9 +457,6 @@ public:
                  LgNumber* fan_speed_high,
                  LgNumber* sleep_timer,
                  sensor::Sensor* error_code,
-                 sensor::Sensor* pipe_temp_in,
-                 sensor::Sensor* pipe_temp_mid,
-                 sensor::Sensor* pipe_temp_out,
                  binary_sensor::BinarySensor* defrost,
                  binary_sensor::BinarySensor* preheat,
                  binary_sensor::BinarySensor* outdoor,
@@ -516,10 +471,6 @@ public:
                  bool fahrenheit, bool is_slave_controller)
       : rx_pin_(*rx_pin),
         temperature_sensor_(temperature_sensor),
-        vane_select_1_(*vane_select_1),
-        vane_select_2_(*vane_select_2),
-        vane_select_3_(*vane_select_3),
-        vane_select_4_(*vane_select_4),
         overheating_select_(*overheating_select),
         fan_speed_slow_(*fan_speed_slow),
         fan_speed_low_(*fan_speed_low),
@@ -527,9 +478,6 @@ public:
         fan_speed_high_(*fan_speed_high),
         sleep_timer_(*sleep_timer),
         error_code_(*error_code),
-        pipe_temp_in_(*pipe_temp_in),
-        pipe_temp_mid_(*pipe_temp_mid),
-        pipe_temp_out_(*pipe_temp_out),
         defrost_(*defrost),
         preheat_(*preheat),
         outdoor_(*outdoor),
@@ -544,18 +492,6 @@ public:
         fahrenheit_(fahrenheit),
         slave_(is_slave_controller)
     {
-        vane_select_1_.add_on_state_callback([this](std::string v, size_t index) {
-            set_vane_position(1, index);
-        });
-        vane_select_2_.add_on_state_callback([this](std::string v, size_t index) {
-            set_vane_position(2, index);
-        });
-        vane_select_3_.add_on_state_callback([this](std::string v, size_t index) {
-            set_vane_position(3, index);
-        });
-        vane_select_4_.add_on_state_callback([this](std::string v, size_t index) {
-            set_vane_position(4, index);
-        });
         overheating_select_.add_on_state_callback([this](std::string v, size_t index) {
             set_overheating(index);
         });
@@ -661,26 +597,6 @@ public:
     }
 
 private:
-    // Sets position of vane index (1-4) to position (0-6).
-    void set_vane_position(int index, int position) {
-        if (index < 1 || index > 4) {
-            ESP_LOGE(TAG, "Unexpected vane index: %d", index);
-            return;
-        }
-        if (position < 0 || position > 6) {
-            ESP_LOGE(TAG, "Unexpected vane position: %d", position);
-            return;
-        }
-        if (vane_position_[index-1] == position) {
-            return;
-        }
-        ESP_LOGD(TAG, "Setting vane %d position: %d", index, position);
-        vane_position_[index-1] = position;
-        if (!is_initializing_) {
-            pending_type_a_settings_change_ = true;
-        }
-    }
-
     // Sets installer setting fan speed index (0-3 for slow-high) to value (0-255), with "0" being the factory default
     void set_fan_speed(int index, int value) {
         if (index < 0 || index > 3) {
@@ -1004,12 +920,6 @@ private:
         send_buf_[3] = fan_speed_[1];
         send_buf_[4] = fan_speed_[2];
         send_buf_[5] = fan_speed_[3];
-
-        // Bytes 7-8 store vane positions.
-        send_buf_[7] = (send_buf_[7] & 0xf0) | (vane_position_[0] & 0x0f); // Set vane 1
-        send_buf_[7] = (send_buf_[7] & 0x0f) | ((vane_position_[1] & 0x0f) << 4); // Set vane 2
-        send_buf_[8] = (send_buf_[8] & 0xf0) | (vane_position_[2] & 0x0f); // Set vane 3
-        send_buf_[8] = (send_buf_[8] & 0x0f) | ((vane_position_[3] & 0x0f) << 4); // Set vane 4
 
         // Set auto dry setting.
         uint8_t b = send_buf_[11] & ~0x8;
@@ -1347,42 +1257,6 @@ private:
             }
         }
 
-        // Handle vane 1 position change
-        uint8_t vane1 = buffer[7] & 0x0F;
-        if (vane1 <= 6) {
-            vane_position_[0] = vane1;
-            vane_select_1_.publish_state(*vane_select_1_.at(vane1));
-        } else {
-            ESP_LOGE(TAG, "Unexpected vane 1 position: %u", vane1);
-        }
-
-        // Handle vane 2 position change
-        uint8_t vane2 = (buffer[7] >> 4) & 0x0F;
-        if (vane2 <= 6) {
-            vane_position_[1] = vane2;
-            vane_select_2_.publish_state(*vane_select_2_.at(vane2));
-        } else {
-            ESP_LOGE(TAG, "Unexpected vane 2 position: %u", vane2);
-        }
-
-        // Handle vane 3 position change
-        uint8_t vane3 = buffer[8] & 0x0F;
-        if (vane3 <= 6) {
-            vane_position_[2] = vane3;
-            vane_select_3_.publish_state(*vane_select_3_.at(vane3));
-        } else {
-            ESP_LOGE(TAG, "Unexpected vane 3 position: %u", vane3);
-        }
-
-        // Handle vane 4 position change
-        uint8_t vane4 = (buffer[8] >> 4) & 0x0F;
-        if (vane4 <= 6) {
-            vane_position_[3] = vane4;
-            vane_select_4_.publish_state(*vane_select_4_.at(vane4));
-        } else {
-            ESP_LOGE(TAG, "Unexpected vane 4 position: %u", vane4);
-        }
-
         auto_dry_.publish_state(buffer[11] & 0x8);
 
         if (sender != MessageSender::Slave) {
@@ -1425,56 +1299,6 @@ private:
             overheating_select_.publish_state(*overheating_select_.at(overheating));
         } else {
             ESP_LOGE(TAG, "Unexpected overheating value: %u", overheating);
-        }
-
-        // Table mapping a byte value to degrees Celsius based on values displayed by PREMTB100.
-        // INT8_MIN indicates an invalid value.
-        static constexpr int8_t PipeTempTable[] = {
-            /* 0x00 */ INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN,
-                       INT8_MIN, INT8_MIN, INT8_MIN, 108, 104, 101, 100, 98, 95,
-            /* 0x10 */ 93, 91, 89, 87, 85, 84, 82, 81, 79, 78, 76, 75, 74, 73, 72, 71,
-            /* 0x20 */ 70, 68, 68, 67, 66, 65, 64, 63, 62, 61, 60, 60, 59, 58, 57, 57,
-            /* 0x30 */ 56, 55, 55, 54, 53, 53, 52, 52, 51, 50, 50, 49, 49, 48, 47, 47,
-            /* 0x40 */ 46, 46, 45, 45, 44, 44, 43, 43, 42, 42, 41, 41, 40, 40, 39, 39,
-            /* 0x50 */ 39, 38, 38, 37, 37, 36, 36, 36, 35, 35, 34, 34, 33, 33, 33, 32,
-            /* 0x60 */ 32, 31, 31, 31, 30, 30, 30, 29, 29, 29, 28, 28, 27, 27, 27, 26,
-            /* 0x70 */ 26, 26, 25, 25, 24, 24, 24, 23, 23, 23, 22, 22, 22, 21, 21, 21,
-            /* 0x80 */ 20, 20, 20, 19, 19, 19, 18, 18, 18, 17, 17, 17, 16, 16, 16, 15,
-            /* 0x90 */ 15, 15, 14, 14, 14, 13, 13, 13, 12, 12, 12, 11, 11, 11, 10, 10,
-            /* 0xa0 */ 10, 9, 9, 9, 8, 8, 8, 7, 7, 6, 6, 6, 5, 5, 5, 4,
-            /* 0xb0 */ 4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 0, 0, 0, 0, 0, -1,
-            /* 0xc0 */ -1, -2, -2, -2, -3, -3, -4, -4, -5, -5, -5, -6, -6, -7, -7, -8,
-            /* 0xd0 */ -8, -9, -9, -9, -10, -10, -11, -11, -12, -12, -13, -14, -14, -15, -15, -16,
-            /* 0xe0 */ -16, -17, -18, -18, -19, -20, -20, -21, -22, -22, -23, -24, -25, -26, -27,
-                       -28,
-            /* 0xf0 */ -29, INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN,
-                       INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN, INT8_MIN
-        };
-        static_assert(sizeof(PipeTempTable) == 256);
-        static_assert(PipeTempTable[UINT8_MAX] == INT8_MIN);
-
-        int8_t pipe_temp_in = PipeTempTable[buffer[3]];
-        if (pipe_temp_in == INT8_MIN) {
-            pipe_temp_in_.set_internal(true);
-        } else {
-            pipe_temp_in_.set_internal(false);
-            pipe_temp_in_.publish_state(pipe_temp_in);
-        }
-
-        int8_t pipe_temp_out = PipeTempTable[buffer[4]];
-        if (pipe_temp_out == INT8_MIN) {
-            pipe_temp_out_.set_internal(true);
-        } else {
-            pipe_temp_out_.set_internal(false);
-            pipe_temp_out_.publish_state(pipe_temp_out);
-        }
-
-        int8_t pipe_temp_mid = PipeTempTable[buffer[5]];
-        if (pipe_temp_mid == INT8_MIN) {
-            pipe_temp_mid_.set_internal(true);
-        } else {
-            pipe_temp_mid_.set_internal(false);
-            pipe_temp_mid_.publish_state(pipe_temp_mid);
         }
     }
 

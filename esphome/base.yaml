@@ -60,22 +60,6 @@ climate:
     fahrenheit: ${fahrenheit}
     is_slave_controller: ${is_slave_controller}
     temperature_sensor: temp_sensor
-    vane1:
-      name: Airflow 1 Up/Down
-      id: vane_position_1
-      icon: mdi:arrow-up-down
-    vane2:
-      name: Airflow 2 Up/Down
-      id: vane_position_2
-      icon: mdi:arrow-up-down
-    vane3:
-      name: Airflow 3 Up/Down
-      id: vane_position_3
-      icon: mdi:arrow-up-down
-    vane4:
-      name: Airflow 4 Up/Down
-      id: vane_position_4
-      icon: mdi:arrow-up-down
     overheating:
       name: Over Heating
       id: overheating
@@ -109,21 +93,6 @@ climate:
       name: Error Code
       id: error_code
       icon: mdi:alert-circle-outline
-    pipe_temp_in:
-      name: Pipe Temperature In
-      id: pipe_temperature_in
-      icon: mdi:thermometer
-      unit_of_measurement: "°C"
-    pipe_temp_mid:
-      name: Pipe Temperature Mid
-      id: pipe_temperature_mid
-      icon: mdi:thermometer
-      unit_of_measurement: "°C"
-    pipe_temp_out:
-      name: Pipe Temperature Out
-      id: pipe_temperature_out
-      icon: mdi:thermometer
-      unit_of_measurement: "°C"
     defrost:
       name: Defrost
       id: defrost
