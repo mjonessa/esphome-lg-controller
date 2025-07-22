@@ -288,6 +288,82 @@ class LgController final : public climate::Climate, public uart::UARTDevice, pub
         return false;
     }
 
+    void decode_capabilities(const uint8_t* buffer) {
+        ESP_LOGD(TAG, "Decoding capabilities:");
+        ESP_LOGD(TAG, "  Unit type: %d", (buffer[1] & 0b111));
+        ESP_LOGD(TAG, "  Supports zone state installer setting: %s", (buffer[1] & 0b1000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports swirl: %s", (buffer[1] & 0b10000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports horizontal swing: %s", (buffer[1] & 0b100000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports vertical swing: %s", (buffer[1] & 0b1000000) ? "yes" : "no");
+
+        ESP_LOGD(TAG, "  Supports Fan Auto sub function: %s", (buffer[2] & 0b1) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports plasma (air purifier): %s", (buffer[2] & 0b10) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports humidifier: %s", (buffer[2] & 0b100) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports operation mode Auto: %s", (buffer[2] & 0b1000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports operation mode AI: %s", (buffer[2] & 0b10000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports operation mode Heating: %s", (buffer[2] & 0b100000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports operation mode Fan: %s", (buffer[2] & 0b1000000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports operation mode Dehumidify: %s", (buffer[2] & 0b10000000) ? "yes" : "no");
+
+        ESP_LOGD(TAG, "  Supports fan speed Auto: %s", (buffer[3] & 0b1) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports fan speed Power: %s", (buffer[3] & 0b10) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports fan speed High: %s", (buffer[3] & 0b100) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports fan speed Medium: %s", (buffer[3] & 0b1000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports fan speed Low: %s", (buffer[3] & 0b10000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports fan speed Slow: %s", (buffer[3] & 0b100000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports fan speed Power in heating mode: %s", (buffer[3] & 0b10000000) ? "yes" : "no");
+
+        ESP_LOGD(TAG, "  Supports vertical vane control: %s", (buffer[4] & 0b1) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports ESP value installer setting: %s", (buffer[4] & 0b10) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports static pressure installer setting: %s", (buffer[4] & 0b100) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports ceiling height installer setting: %s", (buffer[4] & 0b1000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports robot clean setting: %s", (buffer[4] & 0b1000000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports auto clean (auto dry) setting: %s", (buffer[4] & 0b10000000) ? "yes" : "no");
+
+        ESP_LOGD(TAG, "  Supports energy saving sub function: %s", (buffer[5] & 0b1) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports override master/slave installer setting: %s", (buffer[5] & 0b10) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports auto change temperature setting: %s", (buffer[5] & 0b100) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Half degrees C not supported: %s", (buffer[5] & 0b100000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Has single vane: %s", (buffer[5] & 0b1000000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Has two vanes: %s", (buffer[5] & 0b10000000) ? "yes" : "no");
+
+        ESP_LOGD(TAG, "  Supports extra airflow option: %s", (buffer[6] & 0b1) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports low-medium fan option: %s", (buffer[6] & 0b1000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports medium-high fan option: %s", (buffer[6] & 0b10000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports minimum cooling target temperature of 16 instead of 18: %s", (buffer[6] & 0b100000) ? "yes" : "no");
+
+        ESP_LOGD(TAG, "  Supports auxiliary heater, installer setting: %s", (buffer[7] & 0b100) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports setting for zone = 1 to N: %d", (buffer[7] >> 3) & 0b1111);
+        ESP_LOGD(TAG, "  Supports over heating, installer setting 15: %s", (buffer[7] & 0b10000000) ? "yes" : "no");
+
+        ESP_LOGD(TAG, "  Supports pipe temperature setting: %s", (buffer[8] & 0b1) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports centigrade installer setting (0.5C or 1C): %s", (buffer[8] & 0b10) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports 5-8 zones: %s", (buffer[8] & 0b1000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports emergency heater installer setting: %s", (buffer[8] & 0b10000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports group control installer setting: %s", (buffer[8] & 0b100000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports unit information setting: %s", (buffer[8] & 0b1000000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports clear filter timer in settings: %s", (buffer[8] & 0b10000000) ? "yes" : "no");
+
+        ESP_LOGD(TAG, "  Supports indoor unit address check, installer setting 26: %s", (buffer[9] & 0b10) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports over cooling, installer setting 27: %s", (buffer[9] & 0b100) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports energy usage setting: %s", (buffer[9] & 0b10000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports refrigerant leak detector installation, installer setting 29: %s", (buffer[9] & 0b10000000) ? "yes" : "no");
+
+        ESP_LOGD(TAG, "  Supports DRED (demand response enabling device): %s", (buffer[10] & 0b1) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports static pressure step, installer setting 32: %s", (buffer[10] & 0b10) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports indoor unit Wifi AP setting: %s", (buffer[10] & 0b100) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports fan cooling mode thermal off, installer setting 35: %s", (buffer[10] & 0b1000000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports use primary heater control, installer setting 36: %s", (buffer[10] & 0b10000000) ? "yes" : "no");
+
+        ESP_LOGD(TAG, "  Supports indoor unit auto start installer setting: %s", (buffer[11] & 0b1) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports AC fan interlocked with ventilation installer setting: %s", (buffer[11] & 0b10) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports himalaya cool sub function: %s", (buffer[11] & 0b100) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports monsoon comfort option: %s", (buffer[11] & 0b1000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports mosquito away sub function: %s", (buffer[11] & 0b10000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports hum+e sub function (called 'comfort cooling' on PREMTB100): %s", (buffer[11] & 0b100000) ? "yes" : "no");
+        ESP_LOGD(TAG, "  Supports simple dry contact installer setting 41: %s", (buffer[11] & 0b10000000) ? "yes" : "no");
+    }
+
     void configure_capabilities() {
         // Default traits
         supported_traits_.set_supported_modes({
@@ -1233,6 +1309,8 @@ private:
             ESP_LOGE(TAG, "ignoring capabilities message not from unit");
             return;
         }
+
+        decode_capabilities(buffer);
 
         // Check if we need to update the capabilities message.
         if (nvs_storage_.capabilities_message[0] == 0 ||
