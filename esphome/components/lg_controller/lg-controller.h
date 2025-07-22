@@ -509,17 +509,17 @@ public:
         auto_dry_.add_on_state_callback([this](bool) {
             pending_type_a_settings_change_ = true;
         });
-        zone1_.add_on_state_callback([this](bool) {
-            pending_status_change_ = true;
+        zone1_.add_on_state_callback([this](bool v) {
+            this->pending_status_change_ = true;
         });
-        zone2_.add_on_state_callback([this](bool) {
-            pending_status_change_ = true;
+        zone2_.add_on_state_callback([this](bool v) {
+            this->pending_status_change_ = true;
         });
-        zone3_.add_on_state_callback([this](bool) {
-            pending_status_change_ = true;
+        zone3_.add_on_state_callback([this](bool v) {
+            this->pending_status_change_ = true;
         });
-        zone4_.add_on_state_callback([this](bool) {
-            pending_status_change_ = true;
+        zone4_.add_on_state_callback([this](bool v) {
+            this->pending_status_change_ = true;
         });
     }
 
@@ -838,11 +838,11 @@ private:
             target = MAX_TEMP_SETPOINT;
         }
 
-        // Byte 5. Unchanged except for the low bit which indicates the target temperature has a
         // 0.5 fractional part.
-        send_buf_[5] = last_recv_status_[5] & ~0x1;
         if (target - uint8_t(target) == 0.5) {
             send_buf_[5] |= 0x1;
+        } else {
+            send_buf_[5] &= ~0x1;
         }
 
         // Byte 6: thermistor setting and target temperature (fractional part in byte 5).
